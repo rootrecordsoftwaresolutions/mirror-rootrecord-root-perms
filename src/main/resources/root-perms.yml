@@ -50,6 +50,14 @@ seed-groups:
     display: Champion
     prefix: "&6[Champion] "
     priority: 24
+  pro:
+    display: Pro
+    prefix: "&8[&bPro&8]&r "
+    priority: 40
+  top_active:
+    display: Top Active Player
+    prefix: "&8[&6Top Active Player&8]&r "
+    priority: 35
   helper:
     display: Helper
     prefix: "&e[Helper] "
