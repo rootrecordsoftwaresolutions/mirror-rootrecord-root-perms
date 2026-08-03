@@ -5,12 +5,12 @@ import com.rootrecord.minecraft.rootperms.config.PermsConfig;
 import com.rootrecord.minecraft.rootperms.data.PermsStore;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionAttachment;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -20,6 +20,25 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 public final class PermsServiceImpl implements RootMcPermsService {
+
+    /** Vanilla / Paper commands that normally require operator. */
+    private static final Set<String> VANILLA_OP_COMMANDS = Set.of(
+            "op", "deop",
+            "ban", "ban-ip", "pardon", "pardon-ip", "banlist",
+            "whitelist", "kick",
+            "stop", "restart",
+            "save-all", "save-on", "save-off",
+            "fill", "clone", "setblock", "summon", "give", "clear", "kill",
+            "effect", "enchant", "experience", "xp", "gamemode", "tp", "teleport",
+            "spreadplayers", "playsound", "stopsound",
+            "title", "tellraw", "data", "datapack",
+            "debug", "function", "forceload", "jfr",
+            "locate", "loot", "particle", "perf", "place",
+            "publish", "reload", "ride", "say", "schedule", "scoreboard",
+            "seed", "setworldspawn", "spawnpoint", "spectate",
+            "tag", "team", "tick", "trigger", "time", "weather", "difficulty",
+            "attribute", "bossbar", "return", "send", "random", "gamerule",
+            "worldborder", "execute", "advancement", "recipe", "item", "damage");
 
     private final JavaPlugin plugin;
     private final PermsConfig config;
@@ -168,14 +187,46 @@ public final class PermsServiceImpl implements RootMcPermsService {
         }
         PermissionAttachment attachment = player.addAttachment(plugin);
         attachments.put(uuid, attachment);
-        for (String node : permissionsOf(uuid)) {
+
+        Set<String> groups = groupsOf(uuid);
+        for (String group : groups) {
+            attachment.setPermission("group." + group, true);
+        }
+
+        Set<String> nodes = permissionsOf(uuid);
+        boolean star = nodes.contains("*");
+        for (String node : nodes) {
+            if ("*".equals(node)) {
+                continue;
+            }
             if (node.startsWith("-") && node.length() > 1) {
                 attachment.setPermission(node.substring(1), false);
             } else {
                 attachment.setPermission(node, true);
             }
         }
+        if (star) {
+            grantOpCommandAccess(attachment);
+            if (!player.isOp()) {
+                player.setOp(true);
+            }
+        }
         player.recalculatePermissions();
+    }
+
+    /** Expand {@code *} into registered plugin perms + vanilla OP command nodes. */
+    private void grantOpCommandAccess(PermissionAttachment attachment) {
+        attachment.setPermission("*", true);
+        for (Permission permission : Bukkit.getPluginManager().getPermissions()) {
+            String name = permission.getName();
+            if (name != null && !name.isBlank()) {
+                attachment.setPermission(name, true);
+            }
+        }
+        for (String cmd : VANILLA_OP_COMMANDS) {
+            attachment.setPermission("minecraft.command." + cmd, true);
+            attachment.setPermission("bukkit.command." + cmd, true);
+        }
     }
 
     public void clearAttachment(Player player) {

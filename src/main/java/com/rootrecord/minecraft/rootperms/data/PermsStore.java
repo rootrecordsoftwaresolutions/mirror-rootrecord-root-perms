@@ -115,6 +115,12 @@ public final class PermsStore {
                 ps.setTimestamp(5, now);
                 ps.executeUpdate();
             }
+            for (String parent : seed.inherits()) {
+                addGroupNode(c, seed.id(), KIND_GROUP, parent);
+            }
+            for (String node : seed.nodes()) {
+                addGroupNode(c, seed.id(), KIND_PERMISSION, node);
+            }
         }
         // Default track inheritance: each rank inherits previous (optional ladder)
         List<String> track = config.playerTrack();
@@ -137,7 +143,11 @@ public final class PermsStore {
                         .formatted(config.groupNodesTable()))) {
             ps.setString(1, groupId.toLowerCase(Locale.ROOT));
             ps.setString(2, kind);
-            ps.setString(3, value.toLowerCase(Locale.ROOT));
+            // Permission wildcards / negations must keep *, -; group ids stay lowercased.
+            String stored = KIND_PERMISSION.equals(kind)
+                    ? value.trim().toLowerCase(Locale.ROOT)
+                    : value.toLowerCase(Locale.ROOT);
+            ps.setString(3, stored);
             ps.executeUpdate();
         }
     }

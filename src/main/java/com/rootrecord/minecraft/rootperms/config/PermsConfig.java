@@ -14,7 +14,13 @@ import java.util.Map;
 
 public final class PermsConfig {
 
-    public record SeedGroup(String id, String display, String prefix, int priority) {}
+    public record SeedGroup(
+            String id,
+            String display,
+            String prefix,
+            int priority,
+            List<String> inherits,
+            List<String> nodes) {}
 
     private final String defaultGroup;
     private final String serverId;
@@ -67,7 +73,9 @@ public final class PermsConfig {
                                 id,
                                 g.getString("display", id),
                                 g.getString("prefix", ""),
-                                g.getInt("priority", 0)));
+                                g.getInt("priority", 0),
+                                normalizeList(g.getStringList("inherits")),
+                                normalizeNodes(g.getStringList("nodes"))));
             }
         }
         return new PermsConfig(
@@ -77,6 +85,33 @@ public final class PermsConfig {
                 Map.copyOf(seeds),
                 db,
                 prefix);
+    }
+
+    private static List<String> normalizeList(List<String> raw) {
+        List<String> out = new ArrayList<>();
+        if (raw == null) {
+            return List.of();
+        }
+        for (String item : raw) {
+            if (item != null && !item.isBlank()) {
+                out.add(item.trim().toLowerCase(Locale.ROOT));
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /** Permission nodes keep {@code *} and leading {@code -} as written (lowercased). */
+    private static List<String> normalizeNodes(List<String> raw) {
+        List<String> out = new ArrayList<>();
+        if (raw == null) {
+            return List.of();
+        }
+        for (String item : raw) {
+            if (item != null && !item.isBlank()) {
+                out.add(item.trim().toLowerCase(Locale.ROOT));
+            }
+        }
+        return List.copyOf(out);
     }
 
     public String defaultGroup() {
